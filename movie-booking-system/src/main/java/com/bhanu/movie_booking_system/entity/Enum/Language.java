@@ -1,0 +1,32 @@
+package com.bhanu.movie_booking_system.entity.Enum;
+
+public enum Language {
+    ARABIC,
+    ASSAMESE,
+    BENGALI,
+    BHOJPURI,
+    CHINESE,
+    ENGLISH,
+    FRENCH,
+    GERMAN,
+    GUJARATI,
+    HINDI,
+    ITALIAN,
+    JAPANESE,
+    KANNADA,
+    KASHMIRI,
+    KONKANI,
+    KOREAN,
+    MALAYALAM,
+    MARATHI,
+    ODIA,
+    PORTUGUESE,
+    PUNJABI,
+    RUSSIAN,
+    SANSKRIT,
+    SPANISH,
+    TAMIL,
+    TELUGU,
+    TULU,
+    URDU
+}
