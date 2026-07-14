@@ -15,7 +15,7 @@ import lombok.Setter;
 public class BookedSeat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long bookedSeatId;
+    private Long bookedSeatId;
     @ManyToOne
     @JoinColumn(name = "booking_id",nullable = false)
     private Booking booking;

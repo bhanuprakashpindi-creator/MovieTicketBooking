@@ -20,7 +20,7 @@ import java.util.List;
 public class Show {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long showId;
+    private Long showId;
     @Column(nullable = false)
     private LocalDate showDate;
     @Column(nullable = false)

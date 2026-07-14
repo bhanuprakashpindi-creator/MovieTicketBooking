@@ -25,7 +25,6 @@ public class Screen {
     @Column(nullable = false)
 
     private Integer totalSeats;
-    @Column(nullable = false)
 
     @JoinColumn(name = "theater_id",nullable = false)
     @ManyToOne

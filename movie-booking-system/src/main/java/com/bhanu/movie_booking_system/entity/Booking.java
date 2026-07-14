@@ -20,7 +20,7 @@ import java.time.LocalTime;
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long bookingId;
+    private Long bookingId;
     @Column(nullable = false)
     private LocalDate bookingDate;
     @Column(nullable = false)
