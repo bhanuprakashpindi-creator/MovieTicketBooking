@@ -1,69 +1,125 @@
-    package com.bhanu.movie_booking_system.service.Impl;
+package com.bhanu.movie_booking_system.service.Impl;
 
-    import com.bhanu.movie_booking_system.dto.request.UserRequest;
-    import com.bhanu.movie_booking_system.dto.response.UserResponse;
-    import com.bhanu.movie_booking_system.entity.Enum.Role;
-    import com.bhanu.movie_booking_system.entity.User;
-    import com.bhanu.movie_booking_system.exception.UserAlreadyExistsException;
-    import com.bhanu.movie_booking_system.repository.UserRepository;
-    import com.bhanu.movie_booking_system.service.JWTService;
-    import com.bhanu.movie_booking_system.service.UserService;
-    import org.springframework.beans.factory.annotation.Autowired;
-    import org.springframework.security.authentication.AuthenticationManager;
-    import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-    import org.springframework.security.core.Authentication;
-    import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-    import org.springframework.stereotype.Service;
+import com.bhanu.movie_booking_system.dto.request.ChangePasswordRequest;
+import com.bhanu.movie_booking_system.dto.request.UpdateUserRequest;
+import com.bhanu.movie_booking_system.dto.response.UserResponse;
+import com.bhanu.movie_booking_system.entity.User;
+import com.bhanu.movie_booking_system.exception.UserNotFoundException;
+import com.bhanu.movie_booking_system.repository.UserRepository;
+import com.bhanu.movie_booking_system.service.UserService;
+import com.bhanu.movie_booking_system.transformer.UserTransformer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
-    @Service
-    public class UserServiceImpl implements UserService {
-        private BCryptPasswordEncoder bCryptPasswordEncoder=new BCryptPasswordEncoder(12);
-        @Autowired
-        private UserRepository userRepository;
-        @Autowired
-        private AuthenticationManager authManager;
-        @Autowired
-        private JWTService jwtService;
-        @Override
-        public UserResponse registerUser(UserRequest userRequest){
-            //exception check
-            if(userRepository.existsByEmail(userRequest.getEmail()))
-            {
-                throw  new UserAlreadyExistsException("Email Already Exists");
-            }
-            if(userRepository.existsByPhoneNumber(userRequest.getPhoneNumber()))
-            {
-                throw  new UserAlreadyExistsException("Phone Number Already Exists");
-            }
-            //dto --> databse
+import java.util.ArrayList;
+import java.util.List;
 
-            User user=new User();
-            user.setName(userRequest.getName());
-            user.setEmail(userRequest.getEmail());
-            user.setPassword(bCryptPasswordEncoder.encode(userRequest.getPassword()));
-            user.setPhoneNumber(userRequest.getPhoneNumber());
-            user.setRole(Role.USER);
+@Service
+public class UserServiceImpl implements UserService {
 
-            // saving into repository
-            User newUser=userRepository.save(user);
+    @Autowired
+    private UserRepository userRepository;
 
-            //entity --> userResponse
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
-            UserResponse userResponse=new UserResponse();
-            userResponse.setEmail(newUser.getEmail());
-            userResponse.setName(newUser.getName());
-            userResponse.setPhoneNumber(newUser.getPhoneNumber());
-            userResponse.setRole(newUser.getRole());
-            userResponse.setUserId(newUser.getUserId());
+    @Override
+    public List<UserResponse> getAllUsers() {
 
-            return userResponse;
+        List<User> users = userRepository.findAll();
+
+        List<UserResponse> responses = new ArrayList<>();
+
+        for (User user : users) {
+            responses.add(UserTransformer.userToUserResponse(user));
         }
 
-        @Override
-        public String verify(User user) {
-            Authentication authentication = authManager.authenticate(new UsernamePasswordAuthenticationToken(user.getName(),user.getPassword()));
-            if(authentication.isAuthenticated())
-                return jwtService.generateToken(user.getName());
-            return "fail";
-        }
+        return responses;
     }
+
+    @Override
+    public UserResponse getUserById(Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User Not Found"));
+
+        return UserTransformer.userToUserResponse(user);
+    }
+
+    @Override
+    public UserResponse updateUser(Long userId,
+                                   UpdateUserRequest updateUserRequest) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User Not Found"));
+
+        user.setUserName(updateUserRequest.getUserName());
+        user.setEmail(updateUserRequest.getEmail());
+        user.setPhoneNumber(updateUserRequest.getPhoneNumber());
+
+        User updatedUser = userRepository.save(user);
+
+        return UserTransformer.userToUserResponse(updatedUser);
+    }
+
+    @Override
+    public void deleteUser(Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User Not Found"));
+
+        userRepository.delete(user);
+    }
+
+    @Override
+    public UserResponse getProfile(String username) {
+
+        User user = userRepository.findByUserName(username)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User Not Found"));
+
+        return UserTransformer.userToUserResponse(user);
+    }
+
+    @Override
+    public UserResponse updateProfile(String username,
+                                      UpdateUserRequest updateUserRequest) {
+
+        User user = userRepository.findByUserName(username)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User Not Found"));
+
+        user.setUserName(updateUserRequest.getUserName());
+        user.setEmail(updateUserRequest.getEmail());
+        user.setPhoneNumber(updateUserRequest.getPhoneNumber());
+
+        User updatedUser = userRepository.save(user);
+
+        return UserTransformer.userToUserResponse(updatedUser);
+    }
+
+    @Override
+    public void changePassword(String username,
+                               ChangePasswordRequest request) {
+
+        User user = userRepository.findByUserName(username)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User Not Found"));
+
+        if (!passwordEncoder.matches(
+                request.getCurrentPassword(),
+                user.getPassword())) {
+
+            throw new RuntimeException("Current Password is Incorrect");
+        }
+
+        user.setPassword(
+                passwordEncoder.encode(request.getNewPassword()));
+
+        userRepository.save(user);
+    }
+}

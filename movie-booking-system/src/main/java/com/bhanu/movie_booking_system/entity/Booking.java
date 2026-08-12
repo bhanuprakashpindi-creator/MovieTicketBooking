@@ -1,39 +1,47 @@
 package com.bhanu.movie_booking_system.entity;
 
-
 import com.bhanu.movie_booking_system.entity.Enum.BookingStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "bookings")
 public class Booking {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long bookingId;
+
     @Column(nullable = false)
-    private LocalDate bookingDate;
+    private LocalDateTime bookingDateTime;
+
     @Column(nullable = false)
-    private LocalTime bookingTime;
-    @Column(nullable = false)
-    private double totalAmount;
+    private Double totalAmount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private BookingStatus status;
+    private BookingStatus bookingStatus;
+
     @ManyToOne
-    @JoinColumn(name = "user_id",nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
     @ManyToOne
-    @JoinColumn(name = "show_id",nullable = false)
+    @JoinColumn(name = "show_id", nullable = false)
     private Show show;
+
+    @ManyToMany
+    @JoinTable(
+            name = "booking_show_seats",
+            joinColumns = @JoinColumn(name = "booking_id"),
+            inverseJoinColumns = @JoinColumn(name = "show_seat_id")
+    )
+    private List<ShowSeat> showSeats;
 }

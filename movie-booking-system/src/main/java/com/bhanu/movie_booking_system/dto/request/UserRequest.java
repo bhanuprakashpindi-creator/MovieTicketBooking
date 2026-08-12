@@ -16,7 +16,7 @@ import lombok.Setter;
 public class UserRequest {
 
     @NotBlank(message = "Name Is Required")
-    private String name;
+    private String userName;
     @NotBlank
     @Email(message = "Enter Vaild Email")
     private String email;

@@ -12,7 +12,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class UserResponse {
     private Long userId;
-    private String name;
+    private String userName;
     private String email;
     private String phoneNumber;
     private Role role;

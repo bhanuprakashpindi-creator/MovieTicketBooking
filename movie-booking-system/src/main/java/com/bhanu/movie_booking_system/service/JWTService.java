@@ -17,21 +17,14 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-
+import org.springframework.beans.factory.annotation.Value;
 @Service
 public class JWTService {
-    private String secretKey= "";
-    public JWTService()
-    {
-        try {
-            KeyGenerator keyGenerator= KeyGenerator.getInstance("HmacSha256");
-            SecretKey secretKey1 = keyGenerator.generateKey();
-            secretKey = Base64.getEncoder().encodeToString(secretKey1.getEncoded());
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
+    @Value("${jwt.secret}")
+    private String secretKey;
+    @Value("${jwt.expiration}")
+    private long jwtExpiration;
 
-    }
     public String generateToken(String userName) {
         Map<String,Object> claims = new HashMap<>();
         return Jwts.builder()
@@ -39,7 +32,7 @@ public class JWTService {
                 .add(claims)
                 .subject(userName)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 60*60*30))
+                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .and()
                 .signWith(getKey())
                 .compact();
