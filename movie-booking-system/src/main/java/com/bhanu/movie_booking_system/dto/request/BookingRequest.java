@@ -15,8 +15,6 @@ import java.util.List;
 @AllArgsConstructor
 public class BookingRequest {
 
-    @NotNull(message = "User Id is required")
-    private Long userId;
 
     @NotNull(message = "Show Id is required")
     private Long showId;

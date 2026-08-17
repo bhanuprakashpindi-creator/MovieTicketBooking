@@ -1,10 +1,8 @@
 package com.bhanu.movie_booking_system.dto.request;
 
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import com.bhanu.movie_booking_system.entity.Enum.Role;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

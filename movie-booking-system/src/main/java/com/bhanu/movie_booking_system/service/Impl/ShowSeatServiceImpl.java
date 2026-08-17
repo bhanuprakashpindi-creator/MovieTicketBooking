@@ -1,5 +1,6 @@
 package com.bhanu.movie_booking_system.service.Impl;
 
+import com.bhanu.movie_booking_system.dto.response.ShowSeatResponse;
 import com.bhanu.movie_booking_system.entity.Enum.SeatStatus;
 import com.bhanu.movie_booking_system.entity.Seat;
 import com.bhanu.movie_booking_system.entity.Screen;
@@ -42,5 +43,28 @@ public class ShowSeatServiceImpl implements ShowSeatService {
         }
 
         showSeatRepository.saveAll(showSeats);
+    }
+    @Override
+    public List<ShowSeatResponse> getShowSeats(Long showId) {
+
+        List<ShowSeat> showSeats =
+                showSeatRepository.findByShow_ShowId(showId);
+
+        List<ShowSeatResponse> responses = new ArrayList<>();
+
+        for (ShowSeat showSeat : showSeats) {
+
+            ShowSeatResponse response = new ShowSeatResponse();
+
+            response.setShowSeatId(showSeat.getShowSeatId());
+            response.setSeatId(showSeat.getSeat().getSeatId());
+            response.setSeatNumber(showSeat.getSeat().getSeatNumber());
+            response.setSeatType(showSeat.getSeat().getSeatType());
+            response.setSeatStatus(showSeat.getSeatStatus());
+
+            responses.add(response);
+        }
+
+        return responses;
     }
 }

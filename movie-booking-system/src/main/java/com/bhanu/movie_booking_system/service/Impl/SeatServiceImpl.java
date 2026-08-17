@@ -1,64 +1,104 @@
-package com.bhanu.movie_booking_system.service.Impl;
+    package com.bhanu.movie_booking_system.service.Impl;
 
-import com.bhanu.movie_booking_system.entity.Enum.SeatType;
-import com.bhanu.movie_booking_system.entity.Screen;
-import com.bhanu.movie_booking_system.entity.Seat;
-import com.bhanu.movie_booking_system.repository.SeatRepository;
-import com.bhanu.movie_booking_system.service.SeatService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+    import com.bhanu.movie_booking_system.dto.request.SeatRequest;
+    import com.bhanu.movie_booking_system.dto.response.SeatResponse;
+    import com.bhanu.movie_booking_system.entity.Enum.SeatType;
+    import com.bhanu.movie_booking_system.entity.Screen;
+    import com.bhanu.movie_booking_system.entity.Seat;
+    import com.bhanu.movie_booking_system.repository.ScreenRepository;
+    import com.bhanu.movie_booking_system.repository.SeatRepository;
+    import com.bhanu.movie_booking_system.service.SeatService;
+    import com.bhanu.movie_booking_system.transformer.SeatTransformer;
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+    import java.util.List;
 
-@Service
-public class SeatServiceImpl implements SeatService {
+    @Service
+    public class SeatServiceImpl implements SeatService {
 
-    @Autowired
-    private SeatRepository seatRepository;
-    @Override
-    public void generateSeats(Screen screen) {
+        @Autowired
+        private SeatRepository seatRepository;
 
-        List<Seat> seats = new ArrayList<>();
+        @Autowired
+        private ScreenRepository screenRepository;
 
-        int totalSeats = screen.getTotalSeats();
+        @Override
+        public SeatResponse addSeat(SeatRequest seatRequest) {
 
-        int seatsPerRow = 10;
+            Screen screen = screenRepository.findById(seatRequest.getScreenId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Screen Not Found"));
 
-        int totalRows = (int) Math.ceil((double) totalSeats / seatsPerRow);
+            Seat seat =
+                    SeatTransformer.seatRequestToSeat(seatRequest, screen);
 
-        char row = 'A';
+            Seat savedSeat = seatRepository.save(seat);
 
-        int seatCount = 0;
+            return SeatTransformer.seatToSeatResponse(savedSeat);
+        }
 
-        for (int i = 0; i < totalRows; i++) {
+        @Override
+        public List<SeatResponse> getAllSeats() {
 
-            for (int j = 1; j <= seatsPerRow && seatCount < totalSeats; j++) {
+            return seatRepository.findAll()
+                    .stream()
+                    .map(SeatTransformer::seatToSeatResponse)
+                    .toList();
+        }
+
+        @Override
+        public SeatResponse getSeatById(Long seatId) {
+
+            Seat seat = seatRepository.findById(seatId)
+                    .orElseThrow(() ->
+                            new RuntimeException("Seat Not Found"));
+
+            return SeatTransformer.seatToSeatResponse(seat);
+        }
+
+        @Override
+        public SeatResponse updateSeat(Long seatId,
+                                       SeatRequest seatRequest) {
+
+            Seat seat = seatRepository.findById(seatId)
+                    .orElseThrow(() ->
+                            new RuntimeException("Seat Not Found"));
+
+            Screen screen = screenRepository.findById(seatRequest.getScreenId())
+                    .orElseThrow(() ->
+                            new RuntimeException("Screen Not Found"));
+
+            seat.setSeatNumber(seatRequest.getSeatNumber());
+            seat.setSeatType(seatRequest.getSeatType());
+            seat.setScreen(screen);
+
+            Seat updatedSeat = seatRepository.save(seat);
+
+            return SeatTransformer.seatToSeatResponse(updatedSeat);
+        }
+
+        @Override
+        public void deleteSeat(Long seatId) {
+
+            Seat seat = seatRepository.findById(seatId)
+                    .orElseThrow(() ->
+                            new RuntimeException("Seat Not Found"));
+
+            seatRepository.delete(seat);
+        }
+        @Override
+        public void generateSeats(Screen screen) {
+
+            for (int i = 1; i <= screen.getTotalSeats(); i++) {
 
                 Seat seat = new Seat();
 
-                seat.setSeatNumber(row + String.valueOf(j));
-
-                if (row >= 'A' && row <= 'F') {
-                    seat.setSeatType(SeatType.REGULAR);
-                }
-                else if (row >= 'G' && row <= 'I') {
-                    seat.setSeatType(SeatType.PREMIUM);
-                }
-                else {
-                    seat.setSeatType(SeatType.RECLINER);
-                }
-
+                seat.setSeatNumber("A" + i);
+                seat.setSeatType(SeatType.REGULAR);
                 seat.setScreen(screen);
 
-                seats.add(seat);
-
-                seatCount++;
+                seatRepository.save(seat);
             }
-
-            row++;
         }
-
-        seatRepository.saveAll(seats);
     }
-}
