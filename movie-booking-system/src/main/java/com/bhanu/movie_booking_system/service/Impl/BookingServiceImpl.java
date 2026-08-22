@@ -5,6 +5,7 @@ import com.bhanu.movie_booking_system.dto.response.BookingResponse;
 import com.bhanu.movie_booking_system.entity.Booking;
 import com.bhanu.movie_booking_system.entity.Enum.BookingStatus;
 import com.bhanu.movie_booking_system.entity.Enum.SeatStatus;
+import com.bhanu.movie_booking_system.entity.Enum.ShowStatus;
 import com.bhanu.movie_booking_system.entity.Show;
 import com.bhanu.movie_booking_system.entity.ShowSeat;
 import com.bhanu.movie_booking_system.entity.User;
@@ -18,16 +19,22 @@ import com.bhanu.movie_booking_system.repository.ShowSeatRepository;
 import com.bhanu.movie_booking_system.repository.UserRepository;
 import com.bhanu.movie_booking_system.service.BookingService;
 import com.bhanu.movie_booking_system.transformer.BookingTransformer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class BookingServiceImpl implements BookingService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(BookingServiceImpl.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -50,6 +57,11 @@ public class BookingServiceImpl implements BookingService {
     @Transactional
     public BookingResponse bookTickets(BookingRequest bookingRequest) {
 
+        log.info(
+                "Booking request received. showId={}",
+                bookingRequest.getShowId()
+        );
+
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -60,24 +72,81 @@ public class BookingServiceImpl implements BookingService {
                 .orElseThrow(() ->
                         new UserNotFoundException("User Not Found"));
 
+        log.info(
+                "Booking initiated by user={}",
+                userName
+        );
+
 
         // Get show
-        Show show = showRepository.findById(bookingRequest.getShowId())
+        Show show = showRepository.findById(
+                        bookingRequest.getShowId()
+                )
                 .orElseThrow(() ->
                         new ShowNotFoundException("Show Not Found"));
+
+        log.debug(
+                "Show found. showId={}, movie={}",
+                show.getShowId(),
+                show.getMovie().getMovieTitle()
+        );
+
+
+        // Validate show status
+        if (show.getShowStatus() != ShowStatus.SCHEDULED) {
+
+            log.warn(
+                    "Booking rejected. Invalid show status. showId={}, status={}",
+                    show.getShowId(),
+                    show.getShowStatus()
+            );
+
+            throw new IllegalArgumentException(
+                    "Tickets cannot be booked for this show"
+            );
+        }
+
+
+        // Validate show date and time
+        if (!show.getShowDateTime().isAfter(LocalDateTime.now())) {
+
+            log.warn(
+                    "Booking rejected. Show has already started. showId={}, showDateTime={}",
+                    show.getShowId(),
+                    show.getShowDateTime()
+            );
+
+            throw new IllegalArgumentException(
+                    "Cannot book a show that has already started"
+            );
+        }
 
 
         // Requested seats
         List<Long> requestedSeatIds =
                 bookingRequest.getShowSeatIds();
 
+        log.debug(
+                "Requested seats. showId={}, seats={}",
+                show.getShowId(),
+                requestedSeatIds
+        );
+
 
         // Prevent duplicate seat IDs
         if (requestedSeatIds.size() !=
                 requestedSeatIds.stream().distinct().count()) {
 
+            log.warn(
+                    "Booking rejected. Duplicate seat IDs. user={}, showId={}, seats={}",
+                    userName,
+                    show.getShowId(),
+                    requestedSeatIds
+            );
+
             throw new IllegalArgumentException(
-                    "Duplicate seats are not allowed");
+                    "Duplicate seats are not allowed"
+            );
         }
 
 
@@ -92,8 +161,16 @@ public class BookingServiceImpl implements BookingService {
         // Make sure all seats belong to this show
         if (showSeats.size() != requestedSeatIds.size()) {
 
+            log.warn(
+                    "Booking rejected. One or more seats do not belong to show. " +
+                            "showId={}, requestedSeats={}",
+                    show.getShowId(),
+                    requestedSeatIds
+            );
+
             throw new IllegalArgumentException(
-                    "One or more seats do not belong to this show");
+                    "One or more seats do not belong to this show"
+            );
         }
 
 
@@ -101,6 +178,14 @@ public class BookingServiceImpl implements BookingService {
         for (ShowSeat showSeat : showSeats) {
 
             if (showSeat.getSeatStatus() == SeatStatus.BOOKED) {
+
+                log.warn(
+                        "Booking rejected. Seat already booked. " +
+                                "seatNumber={}, showId={}, user={}",
+                        showSeat.getSeat().getSeatNumber(),
+                        show.getShowId(),
+                        userName
+                );
 
                 throw new SeatAlreadyBookedException(
                         "Seat " +
@@ -114,6 +199,13 @@ public class BookingServiceImpl implements BookingService {
         // Calculate total amount
         double totalAmount =
                 show.getTicketPrice() * showSeats.size();
+
+        log.debug(
+                "Booking amount calculated. showId={}, seats={}, totalAmount={}",
+                show.getShowId(),
+                showSeats.size(),
+                totalAmount
+        );
 
 
         // Convert request → Booking
@@ -133,7 +225,9 @@ public class BookingServiceImpl implements BookingService {
         // Mark seats as booked
         for (ShowSeat showSeat : showSeats) {
 
-            showSeat.setSeatStatus(SeatStatus.BOOKED);
+            showSeat.setSeatStatus(
+                    SeatStatus.BOOKED
+            );
         }
 
 
@@ -146,6 +240,16 @@ public class BookingServiceImpl implements BookingService {
                 bookingRepository.save(booking);
 
 
+        log.info(
+                "Booking successful. bookingId={}, user={}, showId={}, seats={}, totalAmount={}",
+                savedBooking.getBookingId(),
+                userName,
+                show.getShowId(),
+                requestedSeatIds,
+                totalAmount
+        );
+
+
         return BookingTransformer.bookingToBookingResponse(
                 savedBooking
         );
@@ -153,11 +257,13 @@ public class BookingServiceImpl implements BookingService {
 
 
     // =========================================================
-    // GET BOOKINGS
+    // GET ALL BOOKINGS
     // =========================================================
 
     @Override
     public List<BookingResponse> getAllBookings() {
+
+        log.info("Get all bookings request received");
 
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
@@ -167,6 +273,11 @@ public class BookingServiceImpl implements BookingService {
                         .stream()
                         .anyMatch(a ->
                                 a.getAuthority().equals("ROLE_ADMIN"));
+
+        log.debug(
+                "Fetching bookings. isAdmin={}",
+                isAdmin
+        );
 
 
         List<Booking> bookings;
@@ -191,6 +302,13 @@ public class BookingServiceImpl implements BookingService {
         }
 
 
+        log.info(
+                "Bookings fetched successfully. count={}, isAdmin={}",
+                bookings.size(),
+                isAdmin
+        );
+
+
         return bookings.stream()
                 .map(BookingTransformer::bookingToBookingResponse)
                 .toList();
@@ -204,6 +322,11 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookingResponse getBookingById(Long bookingId) {
 
+        log.info(
+                "Get booking request received. bookingId={}",
+                bookingId
+        );
+
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -215,6 +338,12 @@ public class BookingServiceImpl implements BookingService {
                                 new BookingNotFoundException(
                                         "Booking Not Found"));
 
+        log.debug(
+                "Booking found. bookingId={}, status={}",
+                bookingId,
+                booking.getBookingStatus()
+        );
+
 
         // ADMIN → can view any booking
         boolean isAdmin =
@@ -224,14 +353,28 @@ public class BookingServiceImpl implements BookingService {
                                 a.getAuthority().equals("ROLE_ADMIN"));
 
 
+        // USER → only own booking
         if (!isAdmin &&
                 !booking.getUser()
                         .getUserName()
                         .equals(userName)) {
 
+            log.warn(
+                    "Unauthorized booking access attempt. bookingId={}, user={}",
+                    bookingId,
+                    userName
+            );
+
             throw new BookingNotFoundException(
-                    "Booking Not Found");
+                    "Booking Not Found"
+            );
         }
+
+
+        log.info(
+                "Booking fetched successfully. bookingId={}",
+                bookingId
+        );
 
 
         return BookingTransformer.bookingToBookingResponse(
@@ -253,6 +396,13 @@ public class BookingServiceImpl implements BookingService {
 
         String userName = authentication.getName();
 
+        log.info(
+                "Booking cancellation request received. bookingId={}, user={}",
+                bookingId,
+                userName
+        );
+
+
         boolean isAdmin =
                 authentication.getAuthorities()
                         .stream()
@@ -260,6 +410,7 @@ public class BookingServiceImpl implements BookingService {
                                 a.getAuthority().equals("ROLE_ADMIN"));
 
 
+        // Find booking
         Booking booking =
                 bookingRepository.findById(bookingId)
                         .orElseThrow(() ->
@@ -273,8 +424,15 @@ public class BookingServiceImpl implements BookingService {
                         .getUserName()
                         .equals(userName)) {
 
+            log.warn(
+                    "Unauthorized cancellation attempt. bookingId={}, user={}",
+                    bookingId,
+                    userName
+            );
+
             throw new BookingNotFoundException(
-                    "Booking Not Found");
+                    "Booking Not Found"
+            );
         }
 
 
@@ -282,8 +440,52 @@ public class BookingServiceImpl implements BookingService {
         if (booking.getBookingStatus() ==
                 BookingStatus.CANCELLED) {
 
-            throw new RuntimeException(
-                    "Booking is already cancelled");
+            log.warn(
+                    "Cancellation failed. Booking already cancelled. bookingId={}",
+                    bookingId
+            );
+
+            throw new IllegalArgumentException(
+                    "Booking is already cancelled"
+            );
+        }
+
+
+        // Check whether show has already started
+        if (!booking.getShow()
+                .getShowDateTime()
+                .isAfter(LocalDateTime.now())) {
+
+            log.warn(
+                    "Cancellation rejected. Show has already started. " +
+                            "bookingId={}, showId={}",
+                    bookingId,
+                    booking.getShow().getShowId()
+            );
+
+            throw new IllegalArgumentException(
+                    "Booking cannot be cancelled after the show has started"
+            );
+        }
+
+
+        // Check show status
+        ShowStatus showStatus =
+                booking.getShow().getShowStatus();
+
+        if (showStatus == ShowStatus.CANCELLED ||
+                showStatus == ShowStatus.COMPLETED) {
+
+            log.warn(
+                    "Cancellation rejected due to show status. " +
+                            "bookingId={}, showStatus={}",
+                    bookingId,
+                    showStatus
+            );
+
+            throw new IllegalArgumentException(
+                    "Booking cannot be cancelled for this show"
+            );
         }
 
 
@@ -305,9 +507,20 @@ public class BookingServiceImpl implements BookingService {
         }
 
 
+        // Save released seats
         showSeatRepository.saveAll(showSeats);
 
+
+        // Save cancelled booking
         bookingRepository.save(booking);
+
+
+        log.info(
+                "Booking cancelled successfully. bookingId={}, user={}, seatsReleased={}",
+                bookingId,
+                userName,
+                showSeats.size()
+        );
     }
 
 
@@ -319,6 +532,12 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingResponse> getBookingsByStatus(
             BookingStatus bookingStatus) {
 
+        log.info(
+                "Get bookings by status request received. status={}",
+                bookingStatus
+        );
+
+
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -327,6 +546,13 @@ public class BookingServiceImpl implements BookingService {
                         .stream()
                         .anyMatch(a ->
                                 a.getAuthority().equals("ROLE_ADMIN"));
+
+
+        log.debug(
+                "Fetching bookings by status. status={}, isAdmin={}",
+                bookingStatus,
+                isAdmin
+        );
 
 
         List<Booking> bookings;
@@ -358,10 +584,24 @@ public class BookingServiceImpl implements BookingService {
         }
 
 
+        log.info(
+                "Bookings fetched by status. status={}, count={}, isAdmin={}",
+                bookingStatus,
+                bookings.size(),
+                isAdmin
+        );
+
+
         return bookings.stream()
                 .map(BookingTransformer::bookingToBookingResponse)
                 .toList();
     }
+
+
+    // =========================================================
+    // GET MY BOOKINGS
+    // =========================================================
+
     @Override
     public List<BookingResponse> getMyBookings() {
 
@@ -370,12 +610,28 @@ public class BookingServiceImpl implements BookingService {
 
         String userName = authentication.getName();
 
+        log.info(
+                "Get my bookings request received. user={}",
+                userName
+        );
+
+
         User user = userRepository.findByUserName(userName)
                 .orElseThrow(() ->
-                        new UserNotFoundException("User Not Found"));
+                        new UserNotFoundException(
+                                "User Not Found"));
+
 
         List<Booking> bookings =
                 bookingRepository.findByUser(user);
+
+
+        log.info(
+                "User bookings fetched successfully. user={}, count={}",
+                userName,
+                bookings.size()
+        );
+
 
         return bookings.stream()
                 .map(BookingTransformer::bookingToBookingResponse)

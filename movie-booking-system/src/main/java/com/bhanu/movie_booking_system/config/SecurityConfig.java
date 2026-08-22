@@ -38,6 +38,15 @@
                     .requestMatchers(HttpMethod.POST,"/api/auth/register","/api/auth/login")
                     .permitAll()
 
+                            // ================= SWAGGER =================
+
+                            .requestMatchers(
+                                    "/swagger-ui/**",
+                                    "/swagger-ui.html",
+                                    "/v3/api-docs/**"
+                            )
+                            .permitAll()
+
                     // ================= MOVIE =================
 
                     // Admin
