@@ -14,15 +14,11 @@ public interface ShowSeatRepository extends JpaRepository<ShowSeat, Long> {
     List<ShowSeat> findByShow_ShowId(Long showId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            SELECT ss
-            FROM ShowSeat ss
-            WHERE ss.show.showId = :showId
-            AND ss.showSeatId IN :seatIds
-            """)
+    @Query("SELECT ss FROM ShowSeat ss " +
+            "WHERE ss.show.showId = :showId " +
+            "AND ss.showSeatId IN :seatIds")
     List<ShowSeat> findSeatsForBooking(
             @Param("showId") Long showId,
             @Param("seatIds") List<Long> seatIds
     );
-
 }
