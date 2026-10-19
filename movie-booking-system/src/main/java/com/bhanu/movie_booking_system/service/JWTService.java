@@ -25,14 +25,29 @@ public class JWTService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    public String generateToken(String userName) {
-        Map<String,Object> claims = new HashMap<>();
+
+
+    public String generateToken(UserDetails userDetails) {
+
+
+        Map<String, Object> claims = new HashMap<>();
+
+        String role = userDetails.getAuthorities()
+                .stream()
+                .findFirst()
+                .get()
+                .getAuthority();
+
+        claims.put("role", role);
+
         return Jwts.builder()
                 .claims()
                 .add(claims)
-                .subject(userName)
+                .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .expiration(new Date(
+                        System.currentTimeMillis() + jwtExpiration
+                ))
                 .and()
                 .signWith(getKey())
                 .compact();

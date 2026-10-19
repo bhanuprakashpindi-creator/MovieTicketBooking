@@ -18,4 +18,5 @@ public interface SeatService {
 
     void deleteSeat(Long seatId);
     void generateSeats(Screen screen);
+    List<SeatResponse> getSeatsByScreen(Long screenId);
 }

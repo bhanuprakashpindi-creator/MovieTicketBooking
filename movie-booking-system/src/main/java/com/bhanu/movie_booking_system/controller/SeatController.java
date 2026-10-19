@@ -52,4 +52,8 @@ public class SeatController {
 
         return "Seat Deleted Successfully";
     }
+    @GetMapping("/screen/{screenId}")
+    public List<SeatResponse> getSeatsByScreen(@PathVariable Long screenId) {
+        return seatService.getSeatsByScreen(screenId);
+    }
 }

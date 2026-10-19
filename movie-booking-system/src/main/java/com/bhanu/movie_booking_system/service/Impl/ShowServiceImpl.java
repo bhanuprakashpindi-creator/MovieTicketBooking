@@ -60,7 +60,6 @@ public class ShowServiceImpl implements ShowService {
                 showRequest.getShowDateTime()
         );
 
-
         Movie movie =
                 movieRepository.findById(
                                 showRequest.getMovieId()
@@ -168,6 +167,8 @@ public class ShowServiceImpl implements ShowService {
 
         for (Show show : shows) {
 
+            updateShowStatus(show);
+
             responses.add(
                     ShowTransformer.showToShowResponse(
                             show
@@ -212,6 +213,9 @@ public class ShowServiceImpl implements ShowService {
                                     "Show Not Found"
                             );
                         });
+
+
+        updateShowStatus(show);
 
 
         log.info(
@@ -294,12 +298,30 @@ public class ShowServiceImpl implements ShowService {
 
         show.setMovie(movie);
         show.setScreen(screen);
+
         show.setShowDateTime(
                 showRequest.getShowDateTime()
         );
+
         show.setTicketPrice(
                 showRequest.getTicketPrice()
         );
+
+        /*
+         * Recalculate status after changing the show date/time.
+         */
+        if (show.getShowDateTime().isBefore(LocalDateTime.now())) {
+
+            show.setShowStatus(
+                    ShowStatus.COMPLETED
+            );
+
+        } else {
+
+            show.setShowStatus(
+                    ShowStatus.SCHEDULED
+            );
+        }
 
 
         Show updatedShow =
@@ -400,6 +422,9 @@ public class ShowServiceImpl implements ShowService {
         );
 
 
+        shows.forEach(this::updateShowStatus);
+
+
         return shows.stream()
                 .map(ShowTransformer::showToShowResponse)
                 .toList();
@@ -441,6 +466,9 @@ public class ShowServiceImpl implements ShowService {
         );
 
 
+        shows.forEach(this::updateShowStatus);
+
+
         return shows.stream()
                 .map(ShowTransformer::showToShowResponse)
                 .toList();
@@ -473,6 +501,9 @@ public class ShowServiceImpl implements ShowService {
                 theaterId,
                 shows.size()
         );
+
+
+        shows.forEach(this::updateShowStatus);
 
 
         return shows.stream()
@@ -535,6 +566,9 @@ public class ShowServiceImpl implements ShowService {
         );
 
 
+        shows.forEach(this::updateShowStatus);
+
+
         return shows.stream()
                 .map(ShowTransformer::showToShowResponse)
                 .toList();
@@ -574,11 +608,13 @@ public class ShowServiceImpl implements ShowService {
 
 
         log.info(
-                "Shows fetched by theater and date. theaterId={}, date={}, count={}",
+                "Shows fetched by theater and date. theaterId={}, count={}",
                 theaterId,
-                date,
                 shows.size()
         );
+
+
+        shows.forEach(this::updateShowStatus);
 
 
         return shows.stream()
@@ -645,8 +681,38 @@ public class ShowServiceImpl implements ShowService {
         );
 
 
+        shows.forEach(this::updateShowStatus);
+
+
         return shows.stream()
                 .map(ShowTransformer::showToShowResponse)
                 .toList();
+    }
+
+
+    // =========================================================
+    // UPDATE SHOW STATUS
+    // =========================================================
+
+    private void updateShowStatus(Show show) {
+
+        if (
+                show.getShowStatus() == ShowStatus.SCHEDULED
+                        && show.getShowDateTime().isBefore(
+                        LocalDateTime.now()
+                )
+        ) {
+
+            show.setShowStatus(
+                    ShowStatus.COMPLETED
+            );
+
+            showRepository.save(show);
+
+            log.info(
+                    "Show status updated to COMPLETED. showId={}",
+                    show.getShowId()
+            );
+        }
     }
 }

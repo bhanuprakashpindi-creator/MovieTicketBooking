@@ -307,4 +307,16 @@ public class SeatServiceImpl implements SeatService {
                 screen.getTotalSeats()
         );
     }
+    @Override
+    public List<SeatResponse> getSeatsByScreen(Long screenId) {
+
+        Screen screen = screenRepository.findById(screenId)
+                .orElseThrow(() -> new RuntimeException("Screen not found"));
+
+        List<Seat> seats = seatRepository.findByScreen(screen);
+
+        return seats.stream()
+                .map(SeatTransformer::seatToSeatResponse)
+                .toList();
+    }
 }

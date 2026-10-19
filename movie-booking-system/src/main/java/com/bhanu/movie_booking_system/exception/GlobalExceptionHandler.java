@@ -2,10 +2,11 @@ package com.bhanu.movie_booking_system.exception;
 
 import com.bhanu.movie_booking_system.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -33,7 +34,10 @@ public class GlobalExceptionHandler {
                 .path(request.getRequestURI())
                 .build();
 
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(
+                error,
+                HttpStatus.BAD_REQUEST
+        );
     }
 
     // -------------------- NOT FOUND (404) --------------------
@@ -57,9 +61,13 @@ public class GlobalExceptionHandler {
                 .path(request.getRequestURI())
                 .build();
 
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(
+                error,
+                HttpStatus.NOT_FOUND
+        );
     }
-// -------------------- VALIDATION (400) --------------------
+
+    // -------------------- VALIDATION (400) --------------------
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
@@ -70,7 +78,8 @@ public class GlobalExceptionHandler {
                 .getFieldErrors()
                 .stream()
                 .map(error ->
-                        error.getField() + ": " + error.getDefaultMessage())
+                        error.getField() + ": "
+                                + error.getDefaultMessage())
                 .findFirst()
                 .orElse("Invalid request");
 
@@ -81,11 +90,13 @@ public class GlobalExceptionHandler {
                 .path(request.getRequestURI())
                 .build();
 
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(
+                error,
+                HttpStatus.BAD_REQUEST
+        );
     }
 
-
-// -------------------- ILLEGAL ARGUMENT (400) --------------------
+    // -------------------- ILLEGAL ARGUMENT (400) --------------------
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
@@ -99,11 +110,44 @@ public class GlobalExceptionHandler {
                 .path(request.getRequestURI())
                 .build();
 
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(
+                error,
+                HttpStatus.BAD_REQUEST
+        );
     }
 
+    // -------------------- CONFLICT (409) --------------------
 
-// -------------------- INTERNAL SERVER ERROR (500) --------------------
+    @ExceptionHandler({
+            IllegalStateException.class,
+            DataIntegrityViolationException.class
+    })
+    public ResponseEntity<ErrorResponse> handleConflictExceptions(
+            Exception ex,
+            HttpServletRequest request) {
+
+        String message;
+
+        if (ex instanceof DataIntegrityViolationException) {
+            message = "Operation conflicts with existing data.";
+        } else {
+            message = ex.getMessage();
+        }
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timeStamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .message(message)
+                .path(request.getRequestURI())
+                .build();
+
+        return new ResponseEntity<>(
+                error,
+                HttpStatus.CONFLICT
+        );
+    }
+
+    // -------------------- INTERNAL SERVER ERROR (500) --------------------
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(

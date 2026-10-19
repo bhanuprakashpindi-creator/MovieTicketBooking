@@ -46,10 +46,13 @@ public class Movie {
     private Certificate certificate;
     @Column(nullable = false)
     private String director;
+
     @Column(nullable = false)
     private String cast;
     @Column(nullable = false)
     private String trailerUrl;
+    @Column(nullable = false)
+    private boolean isActive = true;
 
     @OneToMany(mappedBy = "movie")
     private List<Show> shows;

@@ -1,16 +1,19 @@
 package com.bhanu.movie_booking_system.service.Impl;
 
+import com.bhanu.movie_booking_system.dto.request.MovieRequest;
+import com.bhanu.movie_booking_system.dto.response.MovieResponse;
 import com.bhanu.movie_booking_system.entity.Enum.Certificate;
 import com.bhanu.movie_booking_system.entity.Enum.Genre;
 import com.bhanu.movie_booking_system.entity.Enum.Language;
-import com.bhanu.movie_booking_system.transformer.MovieTransformers;
-import com.bhanu.movie_booking_system.dto.request.MovieRequest;
-import com.bhanu.movie_booking_system.dto.response.MovieResponse;
+import com.bhanu.movie_booking_system.entity.Enum.ShowStatus;
 import com.bhanu.movie_booking_system.entity.Movie;
 import com.bhanu.movie_booking_system.exception.MovieAlreadyExistsException;
 import com.bhanu.movie_booking_system.exception.MovieNotFoundException;
 import com.bhanu.movie_booking_system.repository.MovieRepository;
+import com.bhanu.movie_booking_system.repository.ShowRepository;
 import com.bhanu.movie_booking_system.service.MovieService;
+import com.bhanu.movie_booking_system.transformer.MovieTransformers;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +22,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -30,6 +32,9 @@ public class MovieServiceImpl implements MovieService {
 
     @Autowired
     private MovieRepository movieRepository;
+
+    @Autowired
+    private ShowRepository showRepository;
 
 
     // =========================================================
@@ -47,7 +52,6 @@ public class MovieServiceImpl implements MovieService {
         Movie movie =
                 MovieTransformers.movieRequestToMovie(movieRequest);
 
-
         if (movieRepository
                 .findByMovieTitle(movieRequest.getMovieTitle())
                 .isPresent()) {
@@ -62,10 +66,11 @@ public class MovieServiceImpl implements MovieService {
             );
         }
 
+        // Newly created movies are active by default.
+        movie.setActive(true);
 
         Movie savedMovie =
                 movieRepository.save(movie);
-
 
         log.info(
                 "Movie created successfully. movieId={}, title={}",
@@ -73,48 +78,31 @@ public class MovieServiceImpl implements MovieService {
                 savedMovie.getMovieTitle()
         );
 
-
-        return MovieTransformers.movieToMovieResponse(
-                savedMovie
-        );
+        return MovieTransformers.movieToMovieResponse(savedMovie);
     }
 
 
     // =========================================================
-    // GET ALL MOVIES
+    // GET ALL ACTIVE MOVIES
     // =========================================================
 
     @Override
     public List<MovieResponse> getAllMovies() {
 
-        log.info("Get all movies request received");
+        log.info("Get all active movies request received");
+
+        List<Movie> activeMovies =
+                movieRepository.findByIsActiveTrue();
 
         List<MovieResponse> movies =
-                new ArrayList<>();
-
-        List<Movie> allMovies =
-                movieRepository.findAll();
-
-
-        log.debug(
-                "Movies retrieved from database. count={}",
-                allMovies.size()
-        );
-
-
-        for (Movie movie : allMovies) {
-
-            movies.add(
-                    MovieTransformers.movieToMovieResponse(movie)
-            );
-        }
-
+                activeMovies.stream()
+                        .map(MovieTransformers::movieToMovieResponse)
+                        .toList();
 
         log.info(
-                "All movies fetched successfully. count={}",
+                "Active movies fetched successfully. count={}",
                 movies.size()
         );
-
 
         return movies;
     }
@@ -132,7 +120,6 @@ public class MovieServiceImpl implements MovieService {
                 movieId
         );
 
-
         Movie movie =
                 movieRepository.findById(movieId)
                         .orElseThrow(() -> {
@@ -147,17 +134,13 @@ public class MovieServiceImpl implements MovieService {
                             );
                         });
 
-
         log.info(
                 "Movie fetched successfully. movieId={}, title={}",
                 movieId,
                 movie.getMovieTitle()
         );
 
-
-        return MovieTransformers.movieToMovieResponse(
-                movie
-        );
+        return MovieTransformers.movieToMovieResponse(movie);
     }
 
 
@@ -175,7 +158,6 @@ public class MovieServiceImpl implements MovieService {
                 movieId
         );
 
-
         Movie movie =
                 movieRepository.findById(movieId)
                         .orElseThrow(() -> {
@@ -190,59 +172,25 @@ public class MovieServiceImpl implements MovieService {
                             );
                         });
 
-
-        movie.setMovieTitle(
-                movieRequest.getMovieTitle()
-        );
-
-        movie.setGenre(
-                movieRequest.getGenre()
-        );
-
-        movie.setLanguage(
-                movieRequest.getLanguage()
-        );
+        movie.setMovieTitle(movieRequest.getMovieTitle());
+        movie.setGenre(movieRequest.getGenre());
+        movie.setLanguage(movieRequest.getLanguage());
 
         movie.setDurationInMinutes(
                 movieRequest.getDurationInMinutes()
         );
 
-        movie.setReleaseDate(
-                movieRequest.getReleaseDate()
-        );
-
-        movie.setRating(
-                movieRequest.getRating()
-        );
-
-        movie.setPosterUrl(
-                movieRequest.getPosterUrl()
-        );
-
-        movie.setDescription(
-                movieRequest.getDescription()
-        );
-
-        movie.setCertificate(
-                movieRequest.getCertificate()
-        );
-
-        movie.setDirector(
-                movieRequest.getDirector()
-        );
-
-        movie.setCast(
-                movieRequest.getCast()
-        );
-
-        movie.setTrailerUrl(
-                movieRequest.getTrailerUrl()
-        );
-
+        movie.setReleaseDate(movieRequest.getReleaseDate());
+        movie.setRating(movieRequest.getRating());
+        movie.setPosterUrl(movieRequest.getPosterUrl());
+        movie.setDescription(movieRequest.getDescription());
+        movie.setCertificate(movieRequest.getCertificate());
+        movie.setDirector(movieRequest.getDirector());
+        movie.setCast(movieRequest.getCast());
+        movie.setTrailerUrl(movieRequest.getTrailerUrl());
 
         Movie updatedMovie =
                 movieRepository.save(movie);
-
 
         log.info(
                 "Movie updated successfully. movieId={}, title={}",
@@ -250,15 +198,12 @@ public class MovieServiceImpl implements MovieService {
                 updatedMovie.getMovieTitle()
         );
 
-
-        return MovieTransformers.movieToMovieResponse(
-                updatedMovie
-        );
+        return MovieTransformers.movieToMovieResponse(updatedMovie);
     }
 
 
     // =========================================================
-    // DELETE MOVIE
+    // DELETE / ARCHIVE MOVIE
     // =========================================================
 
     @Override
@@ -268,7 +213,6 @@ public class MovieServiceImpl implements MovieService {
                 "Movie deletion request received. movieId={}",
                 movieId
         );
-
 
         Movie movie =
                 movieRepository.findById(movieId)
@@ -284,12 +228,64 @@ public class MovieServiceImpl implements MovieService {
                             );
                         });
 
+        // Prevent archiving movies with scheduled or running shows.
+        boolean hasActiveShows =
+                showRepository.existsByMovie_MovieIdAndShowStatusIn(
+                        movieId,
+                        List.of(
+                                ShowStatus.SCHEDULED,
+                                ShowStatus.RUNNING
+                        )
+                );
 
+        if (hasActiveShows) {
+
+            log.warn(
+                    "Movie archiving rejected because active shows exist. movieId={}",
+                    movieId
+            );
+
+            throw new IllegalStateException(
+                    "Cannot archive this movie because it has scheduled or running shows."
+            );
+        }
+
+        // Check whether historical shows reference this movie.
+        boolean hasAssociatedShows =
+                showRepository.existsByMovie_MovieId(movieId);
+
+        if (hasAssociatedShows) {
+
+            if (!movie.isActive()) {
+
+                log.info(
+                        "Movie is already archived. movieId={}, title={}",
+                        movieId,
+                        movie.getMovieTitle()
+                );
+
+                return;
+            }
+
+            // Preserve historical shows and bookings.
+            movie.setActive(false);
+
+            movieRepository.save(movie);
+
+            log.info(
+                    "Movie archived successfully. movieId={}, title={}",
+                    movieId,
+                    movie.getMovieTitle()
+            );
+
+            return;
+        }
+
+        // No shows reference this movie, so permanent deletion is allowed.
         movieRepository.delete(movie);
 
-
         log.info(
-                "Movie deleted successfully. movieId={}, title={}",
+                "Movie permanently deleted successfully. movieId={}, title={}",
                 movieId,
                 movie.getMovieTitle()
         );
@@ -297,7 +293,7 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // SEARCH MOVIES
+    // SEARCH ACTIVE MOVIES
     // =========================================================
 
     @Override
@@ -308,11 +304,11 @@ public class MovieServiceImpl implements MovieService {
                 title
         );
 
-
         List<Movie> movies =
                 movieRepository
-                        .findByMovieTitleContainingIgnoreCase(title);
-
+                        .findByMovieTitleContainingIgnoreCaseAndIsActiveTrue(
+                                title
+                        );
 
         log.debug(
                 "Movie search completed. title={}, results={}",
@@ -320,7 +316,6 @@ public class MovieServiceImpl implements MovieService {
                 movies.size()
         );
 
-
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)
                 .toList();
@@ -328,30 +323,24 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // GET MOVIES BY GENRE
+    // GET ACTIVE MOVIES BY GENRE
     // =========================================================
 
     @Override
-    public List<MovieResponse> getMoviesByGenre(
-            String genre) {
+    public List<MovieResponse> getMoviesByGenre(String genre) {
 
         log.info(
                 "Movie genre filter request received. genre={}",
                 genre
         );
 
-
         Genre genreEnum =
-                Genre.valueOf(
-                        genre.toUpperCase()
-                );
-
+                Genre.valueOf(genre.toUpperCase());
 
         List<Movie> movies =
-                movieRepository.findByGenre(
+                movieRepository.findByGenreAndIsActiveTrue(
                         genreEnum
                 );
-
 
         log.debug(
                 "Movies filtered by genre. genre={}, results={}",
@@ -359,7 +348,6 @@ public class MovieServiceImpl implements MovieService {
                 movies.size()
         );
 
-
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)
                 .toList();
@@ -367,30 +355,24 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // GET MOVIES BY LANGUAGE
+    // GET ACTIVE MOVIES BY LANGUAGE
     // =========================================================
 
     @Override
-    public List<MovieResponse> getMoviesByLanguage(
-            String language) {
+    public List<MovieResponse> getMoviesByLanguage(String language) {
 
         log.info(
                 "Movie language filter request received. language={}",
                 language
         );
 
-
         Language languageEnum =
-                Language.valueOf(
-                        language.toUpperCase()
-                );
-
+                Language.valueOf(language.toUpperCase());
 
         List<Movie> movies =
-                movieRepository.findByLanguage(
+                movieRepository.findByLanguageAndIsActiveTrue(
                         languageEnum
                 );
-
 
         log.debug(
                 "Movies filtered by language. language={}, results={}",
@@ -398,7 +380,6 @@ public class MovieServiceImpl implements MovieService {
                 movies.size()
         );
 
-
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)
                 .toList();
@@ -406,7 +387,7 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // GET MOVIES BY CERTIFICATE
+    // GET ACTIVE MOVIES BY CERTIFICATE
     // =========================================================
 
     @Override
@@ -418,18 +399,13 @@ public class MovieServiceImpl implements MovieService {
                 certificate
         );
 
-
         Certificate certificateEnum =
-                Certificate.valueOf(
-                        certificate.toUpperCase()
-                );
-
+                Certificate.valueOf(certificate.toUpperCase());
 
         List<Movie> movies =
-                movieRepository.findByCertificate(
+                movieRepository.findByCertificateAndIsActiveTrue(
                         certificateEnum
                 );
-
 
         log.debug(
                 "Movies filtered by certificate. certificate={}, results={}",
@@ -437,7 +413,6 @@ public class MovieServiceImpl implements MovieService {
                 movies.size()
         );
 
-
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)
                 .toList();
@@ -445,27 +420,24 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // SORT MOVIES BY RATING
+    // SORT ACTIVE MOVIES BY RATING
     // =========================================================
 
     @Override
     public List<MovieResponse> getMoviesSortedByRating() {
 
         log.info(
-                "Get movies sorted by rating request received"
+                "Get active movies sorted by rating request received"
         );
-
 
         List<Movie> movies =
                 movieRepository
-                        .findAllByOrderByRatingDesc();
-
+                        .findByIsActiveTrueOrderByRatingDesc();
 
         log.debug(
                 "Movies sorted by rating. results={}",
                 movies.size()
         );
-
 
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)
@@ -474,13 +446,11 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // PAGINATION
+    // PAGINATION - ACTIVE MOVIES ONLY
     // =========================================================
 
     @Override
-    public Page<MovieResponse> getMovies(
-            int page,
-            int size) {
+    public Page<MovieResponse> getMovies(int page, int size) {
 
         log.info(
                 "Movie pagination request received. page={}, size={}",
@@ -488,14 +458,11 @@ public class MovieServiceImpl implements MovieService {
                 size
         );
 
-
         Pageable pageable =
                 PageRequest.of(page, size);
 
-
         Page<Movie> movies =
-                movieRepository.findAll(pageable);
-
+                movieRepository.findByIsActiveTrue(pageable);
 
         log.debug(
                 "Movie pagination completed. page={}, size={}, totalElements={}",
@@ -504,7 +471,6 @@ public class MovieServiceImpl implements MovieService {
                 movies.getTotalElements()
         );
 
-
         return movies.map(
                 MovieTransformers::movieToMovieResponse
         );
@@ -512,30 +478,28 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // MINIMUM RATING
+    // GET ACTIVE MOVIES BY MINIMUM RATING
     // =========================================================
 
     @Override
-    public List<MovieResponse> getMoviesByMinimumRating(
-            Double rating) {
+    public List<MovieResponse> getMoviesByMinimumRating(Double rating) {
 
         log.info(
                 "Minimum rating filter request received. rating={}",
                 rating
         );
 
-
         List<Movie> movies =
                 movieRepository
-                        .findByRatingGreaterThanEqual(rating);
-
+                        .findByRatingGreaterThanEqualAndIsActiveTrue(
+                                rating
+                        );
 
         log.debug(
                 "Movies filtered by minimum rating. rating={}, results={}",
                 rating,
                 movies.size()
         );
-
 
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)
@@ -544,27 +508,24 @@ public class MovieServiceImpl implements MovieService {
 
 
     // =========================================================
-    // SORT BY RELEASE DATE
+    // SORT ACTIVE MOVIES BY RELEASE DATE
     // =========================================================
 
     @Override
     public List<MovieResponse> getMoviesSortedByReleaseDate() {
 
         log.info(
-                "Get movies sorted by release date request received"
+                "Get active movies sorted by release date request received"
         );
-
 
         List<Movie> movies =
                 movieRepository
-                        .findAllByOrderByReleaseDateDesc();
-
+                        .findByIsActiveTrueOrderByReleaseDateDesc();
 
         log.debug(
                 "Movies sorted by release date. results={}",
                 movies.size()
         );
-
 
         return movies.stream()
                 .map(MovieTransformers::movieToMovieResponse)

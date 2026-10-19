@@ -16,8 +16,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -27,6 +30,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserDetailsService userDetailsService;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -144,10 +150,13 @@ public class AuthServiceImpl implements AuthService {
         }
 
 
-        String token =
-                jwtService.generateToken(
+        UserDetails userDetails =
+                userDetailsService.loadUserByUsername(
                         loginRequest.getUserName()
                 );
+
+        String token =
+                jwtService.generateToken(userDetails);
 
 
         log.info(
